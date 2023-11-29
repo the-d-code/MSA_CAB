@@ -1,0 +1,3 @@
+#!/bin/sh
+mvn clean package && docker build -t muzammilnagariya/CabClient .
+docker rm -f CabClient 2>/dev/null || true && docker run -it --name CabClient -p 8080:8080 -p 4848:4848 -p 8181:8181 --name CabClient muzammilnagariya/CabClient
