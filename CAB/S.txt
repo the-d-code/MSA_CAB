@@ -1,0 +1,418 @@
+JWT Only steps
+
+java -jar jwtenizr.jar
+
+To generate token
+
+Jwt-token.json maa role change krvanu
+Again 
+ java -jar jwtenizr.jar
+
+Start here
+
+1. Create project
+Change version in pom.xml
+
+
+2. In other resource create folder META-INF -> microprofile-config property file 
+Copy the data of the jwt microprofile-config data to above microprofile-config file
+
+
+3. In .config-> bootstrap 
+@LoginConfig(authMethod = "MP-JWT")
+@RolesAllowed("customer")
+
+4. In .service-> example service 
+    @GET
+    @RolesAllowed("customer")
+    @Path("show")
+    public String show(){
+    
+        return "Khushi";
+    }
+
+
+--------------------------------------------------------------------------------------------
+
+
+display with JWT
+
+
+1. Ping database 
+
+com.mysql.cj.jdbc.MysqlDataSource
+
+URL jdbc:mysql//localhost:3306/cabdb?useSSL=false
+url jdbc:mysql//localhost:3306/cabdb?useSSL=false
+driverClass. com.mysql.cj.jdbc.Driver
+driver. com.mysql.cj.jdbc.Driver
+password. 1234
+user. root
+portNumber 3306
+serverName. localhost
+
+Create JDBC Resources
+
+2 Create server project
+new priject -> java wit maven-> projet from archtype
+search -> payara(jakaratee8_payara) ->next -> add docker hub name finish
+Other Sources -> src/main/resources and create folder named META-INF
+Right click on that META-INF and create one properties file named microprofile-config
+
+3. Properties -> run -> select server
+
+4 Create persistence unit
+
+5 Create entity
+
+6  Create session bean
+In that stateless bean +local
+In local bean define method 
+
+    public Collection<Exam> show();
+
+In simple bean 
+@PersistenceContext(unitName = "PU")
+    EntityManager em;
+
+    public Collection<Exam> show() {
+
+        return em.createNamedQuery("Exam.findAll").getResultList();
+
+    }
+
+7. .config-> bootstrap maa
+@LoginConfig(authMethod = "MP-JWT")
+@DeclareRoles({"customer"})
+
+8 .service-> exampleservice maa
+@EJB beanLocal bean;
+    @GET
+    @Path("show")
+    @RolesAllowed({"customer"})
+    public Collection<Exam> show(){
+        System.out.println(bean.show());
+        return bean.show();
+    }
+
+
+9 Create JWT token 
+java -jar jwtenizr.jar
+
+10 change roles in jwt-token.json
+Eg customer 
+
+10 again run java -jar jwtenizr.jar
+
+11 from the folder of  microprofile-config file copy the data to  META-INF -> microprofile-config
+
+12 @JsonbTransient annotation for many table in get method in entity
+
+13  create client project
+
+14 change in pom.xml
+
+15 Other Sources -> src/main/resources and create folder named META-INF
+Right click on that META-INF and create one properties file named microprofile-config
+eg.
+myClient/mp-rest/url=http://localhost:8080/service/rest/example
+jwt-string =
+
+
+
+16 Properties -> run -> select server
+
+17 form folder token.jwt copy the data n 
+Store in  META-INF -> microprofile-config ema
+jwt-string= data
+
+18 create interface 
+
+19 entity 
+
+20 in interface add this program 
+
+@RegisterRestClient(baseUri = "http://localhost:8080/cabserver/rest/example")
+public interface ApiInterface {
+
+    @ClientHeaderParam(name = "authorization", value = " {generateJWTToken}")
+    @GET
+    @Path("show")
+    @RolesAllowed({"customer"})
+    public Collection<Exam> show();
+
+    default String generateJWTToken(){
+    
+        Config config=  ConfigProvider.getConfig(); // input microprofile.config only
+        
+        String jwt = config.getValue("jwt-string", String.class);
+        String authtoken= "Bearer "+ jwt;
+        return authtoken; 
+    }
+}
+
+
+21 Create servlet 
+
+ @Inject
+    @RestClient
+    ApiInterface a;
+  try {
+                Collection<Exam> booking = a.show();
+
+                out.println("<center>");
+                out.println("<table border='1' cellpadding='5' cellspacing='5'>");
+                out.println("<thead>");
+                out.println("<tr>");
+                out.println("<td>CabId</td>");
+                out.println("<td>RegistrationNo</td>");
+                
+                out.println("</tr>");
+                out.println("</thead>");
+                out.println("<tbody>");
+
+                for (Exam b : booking) {
+                    out.println("<tr>");
+                    out.println("<td>" + b.getId() + "</td>");
+                    out.println("<td>" + b.getName() + "</td>");
+                    out.println("</tr>");
+
+                }
+
+                out.println("</tbody>");
+                out.println("<tfoot></tfoot>");
+                out.println("</table>");
+                out.println("</center>");
+
+            } catch (Exception e) {
+                out.println("Something went wrong");
+                out.println("<br>");
+                out.println(e);
+            }
+            out.println("</body>");
+            out.println("</html>");
+        }
+
+
+
+
+
+
+--------------------------------------------------------------------------------------------
+
+
+many table code in bean session n bean local 
+
+
+
+public Collection<Booking> getBooking()
+    {
+        return em.createNamedQuery("Booking.findAll").getResultList();
+    }
+
+
+     public void InsertDirector(String name, String gender)
+     {
+	Director director = new Director();
+	director.setName(name);
+	director.setGender(gender);
+	entityManager.persist(director);
+     }
+
+     public void UpdateDirector(Integer id, String name, String gender)
+      {
+	Director director = (Director) entityManager.find(Director.class, id);
+	director.setName(name);
+	director.setGender(gender);
+	entityManager.merge(director);
+       }
+
+       public void removeDirector(Integer id) {
+	Director u = (Director) entityManager.find(Director.class, id);
+	entityManager.remove(u);
+      }
+
+      public Director getDirector(Integer id) {
+         return (Director) entityManager.find(Director.class, id);
+      }
+
+      public Collection<Director> getDirectors(){
+	return entityManager.createNamedQuery("Director.findAll").getResultList();
+      }
+	
+	// For movies
+	public void InsertMovie(Integer director_id, String name, String budget, String release_date){
+	Movie m = new Movie();
+	Director c = entityManager.find(Director.class, director_id);
+	m.setDirectorId(c);
+	m.setName(name);
+	m.setBudget(budget);
+	m.setReleaseDate(release_date);
+	entityManager.persist(m);
+
+	Collection<Movie> mv = c.getMovieCollection();
+
+	mv.add(m);
+	c.setMovieCollection(mv);
+	entityManager.merge(c);
+	}
+
+	public void UpdateMovie(Integer id, Integer director_id, String name, String budget, String release_date){
+	Director d = (Director) entityManager.find(Director.class, director_id);
+	Movie c = entityManager.find(Movie.class, id);
+
+	Collection<Movie> director = d.getMovieCollection();
+
+	if(director.contains(c)){
+	c.setName(name);
+	c.setBudget(budget);
+	c.setReleaseDate(release_date);
+	entityManager.merge(c);
+
+	director.add(c);
+	d.setMovieCollection(director);
+	entityManager.merge(d);
+	}
+    }
+
+	public void removeMovie(Integer id) {
+	Movie u = (Movie) entityManager.find(Movie.class, id);
+	entityManager.remove(u);
+	}
+
+	public Movie getMovie(Integer id) {
+	return (Movie) entityManager.find(Movie.class, id);
+	}
+
+	public Collection<Movie> getMovies(){
+	return entityManager.createNamedQuery("Movie.findAll").getResultList();
+	}
+
+
+
+
+source package -> service/ExampleService.java (server)
+
+@Path("/example")
+public class ExampleService {
+    
+    @Inject DataModel dm;
+
+    @GET
+    @Path("get-booking")
+    @Produces(MediaType.APPLICATION_JSON)
+    @RolesAllowed({"customer"})
+    public Collection<Booking> getBooking() {
+        return dm.getBooking();
+    }
+
+}
+
+
+@Path("/director/")
+public class DirectorService {
+@EJB
+DirectorController director;
+
+@POST
+@Path("insertdirector/{name}/{gender}")
+public void InsertDirector(@PathParam("name") String name,@PathParam("gender") String gender) {
+director.InsertDirector(name,gender);
+}
+
+@POST
+@Path("updatedirector/{id}/{name}/{gender}")
+public void UpdateDirector(@PathParam("id") Integer id, @PathParam("name") String name, @PathParam("gender") String gender) {
+director.UpdateDirector(id, name, gender);
+}
+
+@DELETE
+@Path("removedirector/{id}")
+public void removeDirector(@PathParam("id") Integer id) {
+director.removeDirector(id);
+}
+
+@GET
+@Path("getdirector/{id}")
+public Director getDirector(@PathParam("id") Integer id){
+return director.getDirector(id);
+}
+
+@GET
+@Path("getdirectors")
+public Collection<Director> getDirectors(){
+return director.getDirectors();
+}
+}
+
+-For Movie Service
+@Path("/movie/")
+public class MovieService {
+@EJB
+MovieController movie;
+
+@POST
+@Path("insertmovie/{director_id}/{name}/{budget}/{release_date}")
+public void InsertMovie(@PathParam("director_id") Integer director_id,@PathParam("name") String name,@PathParam("budget") String budget,@PathParam("release_date") String release_date) {
+movie.InsertMovie(director_id,name,budget,release_date);
+}
+
+@POST
+@Path("updatemovie/{id}/{director_id}/{name}/{budget}/{release_date}")
+public void UpdateMovie(@PathParam("id") Integer id, @PathParam("director_id") Integer director_id,@PathParam("name") String name,@PathParam("budget") String budget,@PathParam("release_date") String release_date) {
+movie.UpdateMovie(id, director_id,name, budget,release_date);
+}
+
+@DELETE
+@Path("removemovie/{id}")
+public void removeMovie(@PathParam("id") Integer id) {
+movie.removeMovie(id);
+}
+
+@GET
+@Path("getmovie/{id}")
+public Movie getMovie(@PathParam("id") Integer id){
+return movie.getMovie(id);
+}
+
+@GET
+@Path("getmovies")
+public Collection<Movie> getMovies(){
+return movie.getMovies();
+}
+}
+
+
+--------------------------------------------------------------
+				dwploye on payara micro
+--------------------------------------------------------------
+deploy Payara micro 
+after display
+1. Client side-> meta-inf -> microconfig maa change url maa 8083 port edit krvnu
+2. Clean and build both
+3. War file levani client and server ni n client and server folder maa mukvani (project->artifact)
+4. domain.xml file levant Moodle pr thi -> add in same fiolder (server)
+5. Maven repository in google n download payaraa micro 5.194 download kravani
+6. mysql Connector file levanii glass fish —>domain->domain-> lib
+7. Badhu server maa nakhvanu
+8. domain.xml maa jaine database username, dbname n password ,datasource class name change krvanu
+9. Server folder-> domain .xml, mysql connector , server ni war file , payer micro jar file
+10.  Client folder maa payer micro jar file
+11. deploy maa Open that server folder in terminal 
+12. Copy the line change server name.war 
+13. Deploy front end code  
+
+
+Client 
+java -jar payara-micro-5.194.jar --deploy CAB/Micro/CabClient.war --port 8086
+
+======
+Server
+
+java -jar payara-micro-5.194.jar --deploy CAB/Micro/CabApp.war --port 8085 --addlibs mysql-connector-java-8.0.23-bin.jar --domainconfig domain.xml
+				
+
+--------------------------------------------------------------------------------------------------------------------
+For http nad https port error while starting payara run this command in cmd
+
+sudo /etc/init.d/oracle-xe stop
