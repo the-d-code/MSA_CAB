@@ -1,0 +1,825 @@
+1 ===================================================================
+        npm i body-parser cors express jsonwebtoken mongoose nodemon bcrypt node-static multer
+        npm init -y
+
+2 ===================================================================
+package.json
+-------
+
+        "scripts": {
+            "test": "echo \"Error: no test specified\" && exit 1",
+            "start": "node index.js",
+            "dev": "nodemon index.js"
+        },
+
+
+3 ===================================================================
+config.js
+
+        const SecretKey = "N2nA1aY0yA1aN2nC0cH0hA1aB0bH1hA2aD3dI4iY5yA6a7";
+        const LocalUrl = "mongodb://localhost:27017/exam";
+        const Port = 8000;
+        const Host = "localhost";
+
+
+        module.exports = {
+        SecretKey,
+        LocalUrl,
+        Port,
+        Host,
+        };
+
+---------
+middleware
+--------
+
+            const multer = require("multer");
+            const storage = multer.diskStorage({
+            destination: async (req, file, cb) => {
+                cb(null, "./src/upload/product");
+            },
+            filename: async (req, file, cb) => {
+                cb(
+                null,
+                `${file.originalname.split(".")[0]}-${Date.now()}.${
+                    file.mimetype.split("/")[1]
+                }`
+                );
+            },
+            });
+
+            module.exports = {
+            uploadImg: multer({ storage: storage }).single("image"),
+            };
+
+
+4 ===================================================================
+index.js
+-----
+
+            const express = require("express");
+            const app = express();
+            const mongoose = require("mongoose");
+            const body_parser = require("body-parser");
+            const cors = require("cors");
+
+            const userRoutes = require("./src/routes/userRoutes");
+            const authRoutes = require("./src/routes/authRoutes");
+            const bloodgroupRoutes = require("./src/routes/bloodgroupRoutes");
+            const categoryRoutes = require("./src/routes/categoryRoutes");
+
+            mongoose
+            .connect("mongodb://localhost:27017/exam", {
+                family: 4,
+            })
+            .then(() => {
+                console.log("Connection Establish successfully...");
+            })
+            .catch(() => {
+                console.log("Connection failed...");
+            });
+
+            app.use(express.json());
+            app.use(body_parser.json({ limit: "50mb" }));
+            app.use(express.urlencoded({ extended: true }));
+            app.use(cors());
+            app.use("/", express.static("./"));
+           
+            app.use(
+            "/api/",
+            userRoutes,
+            authRoutes,
+            bloodgroupRoutes,
+            categoryRoutes,
+            );
+
+            app.listen(8000, () => {
+            console.log(`Server running on http://localhost:8000/`);
+            });
+5 ===================================================================
+
+create models
+
+            const mongoose = require("mongoose");
+
+            const categorySchemas = new mongoose.Schema(
+            {
+                name: String,
+                status: {
+                type: Boolean,
+                default: true
+                }
+            },
+            {
+                timestamps: true,
+                versionKey: false
+            });
+
+            module.exports = mongoose.model("category", categorySchemas);
+
+
+            ----------------------------------------------------------------------
+
+            const mongoose = require("mongoose");
+
+            const productSchemas = new mongoose.Schema(
+                {
+                    name: String,
+                    price: Number,
+                    quantity: Number,
+                    category: mongoose.Schema.Types.ObjectId,
+                    status: {
+                        type: Boolean,
+                        default: true
+                    }
+                },
+                {
+                    timestamps: true,
+                    versionKey: false
+                });
+
+            module.exports = mongoose.model("product", productSchemas);
+
+6 ===================================================================
+
+npm run dev
+
+7 ===================================================================
+
+create src folder which have folders like models,controller,routes,middleware
+
+8 ===================================================================
+
+create controller
+------
+
+            const Category = require("../models/Category");
+
+            module.exports = {
+
+                addCategory: async (req, res) => {
+                    try {
+                        const { name, status } = req.body;
+                        if (!name) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category name filed is required",
+                            });
+                        } else {
+                            const newCategory = new Category({ name });
+                            const category = await Category.findOne({ name: name });
+                            if (!category) {
+                                const categoryData = await newCategory.save();
+                                res.status(201).json({
+                                    success: true,
+                                    message: "Category created successfully",
+                                    data: categoryData,
+                                });
+                            } else {
+                                res.status(400).json({
+                                    success: false,
+                                    message: "Category already exists",
+                                });
+                            }
+                        }
+                    } catch (error) {
+                        res.status(500).json({
+                            success: false,
+                            message: "Internal server error",
+                            payload: {},
+                        });
+                    }
+
+                },
+
+                getCategory: async (req, res) => {
+                    try {
+                        const categoryData = await Category.find();
+
+                        if (categoryData.length === 0) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category not found",
+                                payload: {},
+                            });
+                        } else {
+                            res.status(200).json({
+                                success: true,
+                                message: "Category get successfully",
+                                data: categoryData,
+                            });
+                        }
+                    } catch (error) {
+                        res.status(500).json({
+                            success: false,
+                            message: "Internal server error",
+                            payload: {},
+                        })
+                    }
+
+                },
+
+                updateCategory: async (req, res) => {
+                    try {
+                        const categoryID = req.params.id;
+                        const { name, status } = req.body;
+                        const newCategory = {
+                            name: name,
+                            status: status,
+                        };
+                        if (!name) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category name filed is required",
+                            });
+                        } else {
+                            const category = await Category.findOne({ _id: categoryID });
+                            if (!category) {
+                                res.status(400).json({
+                                    success: false,
+                                    message: "Category not found",
+                                });
+                            } else {
+                                const categoryData = await Category.findByIdAndUpdate(
+                                    { _id: categoryID },
+                                    newCategory,
+                                    { new: true }
+                                );
+                                res.status(200).json({
+                                    success: true,
+                                    message: "Category updated successfully",
+                                    data: categoryData,
+                                });
+                            }
+
+                        }
+
+                    } catch (error) {
+                        res.status(500).json({
+                            success: false,
+                            message: "Internal server error",
+                            payload: {},
+                        })
+                    }
+
+                },
+
+                deleteCategory: async (req, res) => {
+                    try {
+                        const categoryID = req.params.id;
+                        const category = await Category.findOne({ _id: categoryID });
+                        if (!category) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category not found",
+                            });
+                        } else {
+                            const categoryData = await Category.findByIdAndDelete({ _id: categoryID });
+                            res.status(200).json({
+                                success: true,
+                                message: "Category deleted successfully",
+                                data: categoryData,
+                            });
+                        }
+                    } catch (error) {
+                        res.status(500).json({
+                            success: false,
+                            message: "Internal server error",
+                            payload: {},
+                        })
+                    }
+                },
+
+                uclcCategory: async (req, res) => {
+                    const { name, status } = req.body;
+
+                    //convert name to uppercase
+                    const LowercaseName = name.toUpperCase();
+
+                    try {
+                        const existingName = await Category.findOne({ name: LowercaseName });
+                        if (existingName) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category already exists",
+                                payload: {},
+                            });
+                        } else if (!name) {
+                            res.status(400).json({
+                                success: false,
+                                message: "Category name filed is required",
+                                payload: {},
+                            });
+                        } else {
+
+                            const newCategory = new Category({ name: LowercaseName, status: status });
+                            await newCategory.save();
+
+                            res.status(201).json({
+                                success: true,
+                                message: "Category created successfully",
+                                payload: {category: newCategory},
+                            });
+                        }
+                    } catch (error) {
+                        res.status(500).json({
+                            success: false,
+                            message: "Internal server error",
+                            payload: {},
+                        });
+                    }
+                },
+            };
+
+
+            ---------------------------------------------------------------------------
+
+            const Product = require('../models/Product');
+            const Category = require('../models/Category');
+
+            module.exports = {
+
+                addProduct:async(req,res)=>{
+                    try{
+                        const {name,price,quantity,categoryID,status} = req.body;
+                        const image = req.file.filename;
+                        console.log(image);
+                        const category = await Category.findById(categoryID);
+
+                        if(!category){
+                            res.status(400).json({
+                                success:false,
+                                message:"Category not found",
+                            });
+                        }else if(!name){
+                            res.status(400).json({
+                                success:false,
+                                message:"Name is required",
+                            });
+                        }else if(!price){
+                            res.status(400).json({
+                                success:false,
+                                message:"Price is required",
+                            });
+                        }else if(!quantity){
+                            res.status(400).json({
+                                success:false,
+                                message:"Quantity is required",
+                            });
+                        }else{
+                            const productData = await Product.insertMany({
+                                name,
+                                price,
+                                quantity,
+                                image,
+                                categoryID,
+                                status
+                            });
+                            res.status(200).json({
+                                success:true,
+                                message:"Product added successfully",
+                                payload:{product : productData},
+                            });
+                        }
+                    }catch(error){
+                        res.status(500).json({
+                            success:false,
+                            message:"Internal server error",
+                            error:error.message
+                        });
+                    }
+                },
+
+                getProduct:async(req,res)=>{
+                    try{
+                        const productData = await Product.find();
+                        if(productData.length === 0){
+                            res.status(400).json({
+                                success:false,
+                                message:"Product not found",
+                            
+                            });
+                        }else{
+                            res.status(200).json({
+                                success:true,
+                                message:"Product found successfully",
+                                payload:{product : productData},
+                            });
+                        }
+                    }catch(error){
+                        res.status(500).json({
+                            success:false,
+                            message:"Internal server error",               
+                        });
+                    }
+
+                },
+
+                updateProduct:async(req,res)=>{
+                    try{
+                        const productID = req.params.id;
+                        const {name,price,quantity,categoryID,status} = req.body;
+                        const image = req.file.filename;
+                        const category = await Category.findById(categoryID);
+
+                        const newProduct={
+                            name: name,
+                            price: price,
+                            quantity: quantity,
+                            image: image,
+                            categoryID: categoryID,
+                            status: status,
+                        };
+
+                        if(!category){
+                            res.status(400).json({
+                                success:false,
+                                message:"Category not found",
+                            });
+                        }else if(!name){
+                            res.status(400).json({
+                                success:false,
+                                message:"Name is required",
+                            });
+                        }else if(!price){
+                            res.status(400).json({
+                                success:false,
+                                message:"Price is required",
+                            });
+                        }else if(!quantity){
+                            res.status(400).json({
+                                success:false,
+                                message:"Quantity is required",
+                            });
+                        }else if(!image){
+                            res.status(400).json({
+                                success:false,
+                                message:"Image is required",
+                            });
+                        }else{
+                            const productData = await Product.findOneAndUpdate({_id:productID},newProduct,{new:true});
+                            res.status(200).json({
+                                success:true,
+                                message:"Product updated successfully",
+                                payload:{product : productData},
+                            });
+                        }
+                    }catch(error){
+                        res.status(500).json({
+                            success:false,
+                            message:"Internal server error",               
+                        });
+                    }
+                },
+
+                deleteProduct:async(req,res)=>{
+                    try{
+                        const productID = req.params.id;
+                        const product = await Product.deleteOne({_id:productID});
+
+                        if(!product.deletedCount === 0){
+                            res.status(400).json({
+                                success:false,
+                                message:"Product not found",
+                            });
+                        }else{
+                            res.status(200).json({
+                                success:true,
+                                message:"Product deleted successfully",
+                                payload:{product : product},
+                            });
+                        }
+                    }catch(error){
+                        res.status(500).json({
+                            success:false,
+                            message:"Internal server error",               
+                        });
+                    }
+                },
+            };
+
+
+9 ===================================================================
+ 
+ create routes
+ ---
+
+        const express = require("express");
+        const router = express.Router();
+        const categoryController = require("../controller/categoryController");
+
+        router.post("/category/add/",categoryController.addCategory);
+        router.get("/category/all/",categoryController.getCategory);
+        router.put("/category/update/:id",categoryController.updateCategory);
+        router.delete("/category/delete/:id",categoryController.deleteCategory);
+        router.post("/category/",categoryController.uclcCategory);
+
+        module.exports = router;
+
+        --------------------------
+
+        const express = require("express");
+        const router = express.Router();
+        const productController = require("../controller/productController");
+        const storageMiddleware = require("../middleware/storageMiddleware");
+
+        router.post("/product/add/",storageMiddleware.uploadImg,productController.addProduct);
+        router.get("/product/all/",productController.getProduct);
+        router.put("/product/update/:id",productController.updateProduct);
+        router.delete("/product/delete/:id",productController.deleteProduct);
+
+        module.exports = router;
+
+        ------------------------------
+        const express = require("express");
+        const router = express.Router();
+        const authController = require("../controller/authController");
+
+        router.post("/login/", authController.login);
+
+        module.exports = router;
+
+        --------------------------------
+
+        
+
+
+10 ===================================================================
+
+add routes in index.js file as show in above index.js file
+
+11 ===================================================================
+
+npm run dev
+
+===================================================================
+package.json fullfile
+
+{
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-static": "^0.7.11",
+    "nodemon": "^3.0.1"
+  },
+  "name": "oswd",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
+
+
+===================================================================
+authController.js
+---------------------
+
+        const User = require("../models/User");
+        const bcrypt = require("bcrypt");
+        const jwt = require("jsonwebtoken");
+        const secretKey = "abcdefghijklmnopqrstuvwxyz";
+
+        module.exports = {
+        login: async (req, res) => {
+            const { username, password } = req.body;
+            if (!username) {
+            res.status(400).json({
+                status: false,
+                message: "Username required",
+                payload: {},
+            });
+            } else if (!password) {
+            res.status(400).json({
+                status: false,
+                message: "Password required",
+                payload: {},
+            });
+            } else {
+            const userData = await User.findOne({ username: username });
+            if (!userData) {
+                res.status(404).json({
+                status: false,
+                message: "User not found",
+                payload: {},
+                });
+            } else {
+                const isMatch = await bcrypt.compare(password, userData.password);
+                if (!isMatch) {
+                res.status(404).json({
+                    status: false,
+                    message: "Password not match",
+                    payload: {},
+                });
+                } else {
+                const token = await jwt.sign(
+                    {
+                    userId: userData._id,
+                    username: userData.username,
+                    },
+                    secretKey,
+                    { expiresIn: "1h" }
+                );
+                res.status(404).json({
+                    status: true,
+                    message: "Login successfully....",
+                    payload: { user: token },
+                });
+                }
+            }
+            }
+        },
+        };
+
+
+=====================================================================
+userController.js
+-------------------------
+
+        const User = require("../models/User");
+        const bcrypt = require("bcrypt");
+
+        module.exports = {
+        getAllUsers: async (req, res) => {
+            try {
+            const userData = await User.find();
+            if (userData.length === 0) {
+                res.status(404).json({
+                status: false,
+                message: "User not found",
+                payload: {},
+                });
+            } else {
+                res.status(200).json({
+                status: true,
+                message: "User get successfully",
+                payload: { user: userData },
+                });
+            }
+            } catch (e) {
+            res.status(400).json({
+                status: false,
+                message: "Something went to wrong",
+                payload: {},
+            });
+            }
+        },
+
+        getUserByID: async (req, res) => {
+            try {
+            const userId = req.params.id;
+            const userData = await User.findById({ _id: userId });
+            if (!userData) {
+                res.status(404).json({
+                status: false,
+                message: "User not found",
+                payload: {},
+                });
+            } else {
+                res.status(200).json({
+                status: true,
+                message: "User get successfully",
+                payload: { user: userData },
+                });
+            }
+            } catch (e) {
+            res.status(400).json({
+                status: false,
+                message: "Something went to wrong",
+                payload: {},
+            });
+            }
+        },
+
+        createUser: async (req, res) => {
+            try {
+            const { username, password } = req.body;
+            if (!username) {
+                res.status(400).json({
+                status: false,
+                message: "Username required",
+                payload: {},
+                });
+            } else if (!password) {
+                res.status(400).json({
+                status: false,
+                message: "Password required",
+                payload: {},
+                });
+            } else {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                const newUserData = new User({
+                username: username,
+                password: hashedPassword,
+                });
+                const userData = await newUserData.save();
+                if (!userData) {
+                res.status(400).json({
+                    status: false,
+                    message: "Failed to create user",
+                    payload: {},
+                });
+                } else {
+                res.status(201).json({
+                    status: true,
+                    message: "User created successfully",
+                    payload: { user: userData },
+                });
+                }
+            }
+            } catch (e) {
+            res.status(400).json({
+                status: false,
+                message: "Something went to wrong",
+                payload: {},
+            });
+            }
+        },
+
+        updateUser: async (req, res) => {
+            try {
+            const userId = req.params.id;
+            const { username, password } = req.body;
+            if (!username) {
+                res.status(400).json({
+                status: false,
+                message: "Username required",
+                payload: {},
+                });
+            } else if (!password) {
+                res.status(400).json({
+                status: false,
+                message: "Password required",
+                payload: {},
+                });
+            } else {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                const newUserData = {
+                username: username,
+                password: hashedPassword,
+                };
+                const userData = await User.findOneAndUpdate(
+                { _id: userId },
+                newUserData,
+                { new: true }
+                );
+                if (!userData) {
+                res.status(400).json({
+                    status: false,
+                    message: "Failed to create user",
+                    payload: {},
+                });
+                } else {
+                res.status(201).json({
+                    status: true,
+                    message: "User created successfully",
+                    payload: { user: userData },
+                });
+                }
+            }
+            } catch (e) {
+            res.status(400).json({
+                status: false,
+                message: "Something went to wrong",
+                payload: {},
+            });
+            }
+        },
+
+        deleteUser: async (req, res) => {
+            try {
+            const userId = req.params.id;
+            const userData = await User.deleteOne({ _id: userId });
+            if (userData.deletedCount === 0) {
+                res.status(404).json({
+                status: false,
+                message: "User not delete",
+                payload: {},
+                });
+            } else {
+                res.status(200).json({
+                status: true,
+                message: "User deleted successfully",
+                payload: { deletedCount: userData.deletedCount },
+                });
+            }
+            } catch (e) {
+            res.status(400).json({
+                status: false,
+                message: "Something went to wrong",
+                payload: {},
+            });
+            }
+        },
+        };
